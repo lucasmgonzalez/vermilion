@@ -1,0 +1,12 @@
+# Packages
+node_modules/
+
+# Dotenv
+.env
+
+# Sqlite
+*.sqlite
+
+# Visual Code
+.vscode
+
