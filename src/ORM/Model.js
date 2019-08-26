@@ -1,11 +1,14 @@
 const QueryBuilder = require('./QueryBuilder');
+const HasOne = require('./Relationship/HasOne');
+const HasMany = require('./Relationship/HasMany');
+const BelongsTo = require('./Relationship/BelongsTo');
 
 class Model {
   $guarded = [];
   $hidden = [];
   $attributes = {};
+  $relations = {};
   $persisted = false;
-  // $relations = {} -> for relationships
   // $booted = false;
   // $frozen = false; -> to freeze objects
   // $originalAttributes = {}; -> For dirty check
@@ -65,7 +68,7 @@ class Model {
   // Serializers
   
   toObject = function () {
-    return Object.entries(this.$attributes).reduce((acc, [key, value]) => {
+    return Object.entries({...this.$attributes, ...this.$relations}).reduce((acc, [key, value]) => {
       return this.$hidden.indexOf(key) === -1 ? {...acc, [key]: value} : acc;
     }, {});
   };
@@ -101,6 +104,27 @@ class Model {
     return true;
   };
 
+  // Relationship
+  static with (...relations) {
+    return this.query().setRelationsToLoad(relations);
+  }
+
+  setRelation = function (name, value) {
+    this.$relations[name] = value;
+  }
+
+  hasOne = function(model, foreignKey, parentKey) {
+    return new HasOne(app(model), foreignKey, parentKey, callerName(), this);
+  }
+
+  hasMany = function(model, foreignKey, parentKey) {
+    return new HasMany(app(model), foreignKey, parentKey, callerName(), this);
+  }
+
+  belongsTo(parentModel, foreignKey, parentKey) {
+    return new BelongsTo(app(parentModel), foreignKey, parentKey, callerName(), this);
+  }
+
   // Private Methods
 
   _insert = async function() {
@@ -117,33 +141,27 @@ class Model {
   }
 
   // Static methods
-  static query () {
-    return new QueryBuilder(this);
-  }
-
-  static async find(value) {
-    return await this.findBy(this.$primaryKey, value);
-  }
-
-  static async findBy(key, value) {
-    const data = await this.query().where(key, value).first();
-
-    if (!data) {
-      throw {error: '404', message: 'Model not found'}
-    }
-
-    return data;
-  }
-
   static async create(attributes) {
     const instance = new this(attributes);
     await instance.save();
 
     return instance;
   }
+  
+  static query () {
+    return new QueryBuilder(this);
+  }
 
-  static async all() {
-    return await this.query().get();
+  static find(value) {
+    return this.query().find(value);
+  }
+
+  static findBy(key, value) {
+    return this.query().findBy(key, value);
+  }
+
+  static all() {
+    return this.query().get();
   }
 };
 
